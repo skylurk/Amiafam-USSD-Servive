@@ -34,7 +34,7 @@ const handleUssd = async (req, res) => {
       const user = await findUserByPhone(phoneNumber);
 
       if (!user) {
-        return res.send(registrationController.handle(subInputs, phoneNumber));
+        return res.send(await registrationController.handle(subInputs, phoneNumber));
       }
 
       return res.send(await accountController.handle(subInputs, user));

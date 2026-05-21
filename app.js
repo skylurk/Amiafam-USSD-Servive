@@ -17,6 +17,5 @@ app.use('/ussd', ussdRoutes);
 app.get('/', (req, res) => res.send('Amiafam USSD Service'));
 
 setInterval(deactivateInactiveUsers, 60 * 60 * 1000);
-deactivateInactiveUsers();
 
 module.exports = app;

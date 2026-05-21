@@ -3,7 +3,7 @@ const { createUser } = require('../services/userService');
 
 const OCCUPATIONS = ['Rider', 'Street Vendor', 'Mechanic/Artisan', 'Other'];
 
-const handle = (inputs, phoneNumber) => {
+const handle = async (inputs, phoneNumber) => {
   const level = inputs.length;
 
   // Step 1: Ask for full name
@@ -25,17 +25,16 @@ const handle = (inputs, phoneNumber) => {
 
   // Step 4: Confirm — show summary + consent
   if (level === 3) {
+    const fullName = inputs[0].trim();
+    const idNumber = inputs[1].trim();
     const occupationIndex = parseInt(inputs[2]) - 1;
-
-    if (isNaN(occupationIndex) || !OCCUPATIONS[occupationIndex]) {
-      return con(
-        `Invalid selection. Select your occupation:\n1. Rider\n2. Street Vendor\n3. Mechanic/Artisan\n4. Other`
-      );
-    }
-
-    const fullName = inputs[0];
-    const idNumber = inputs[1];
     const occupation = OCCUPATIONS[occupationIndex];
+
+    if (fullName.length > 50)  return end(`Name too long. Please dial again.`);
+    if (idNumber.length > 15)  return end(`ID number too long. Please dial again.`);
+    if (isNaN(occupationIndex) || !occupation) {
+      return end(`Invalid occupation selected. Please dial again.`);
+    }
 
     return con(
       `Confirm your details:\n` +
@@ -56,20 +55,27 @@ const handle = (inputs, phoneNumber) => {
     }
 
     if (choice === '1') {
+      const fullName = inputs[0].trim();
+      const idNumber = inputs[1].trim();
       const occupationIndex = parseInt(inputs[2]) - 1;
-      const userData = {
-        phoneNumber,
-        fullName: inputs[0],
-        idNumber: inputs[1],
-        occupation: OCCUPATIONS[occupationIndex],
-      };
+      const occupation = OCCUPATIONS[occupationIndex];
 
-      // Save user and trigger STK (async — handled separately)
-      saveAndPay(userData);
+      if (fullName.length > 50)  return end(`Name too long. Please dial again.`);
+      if (idNumber.length > 15)  return end(`ID number too long. Please dial again.`);
+      if (isNaN(occupationIndex) || !occupation) {
+        return end(`Invalid occupation selected. Please dial again.`);
+      }
 
-      return end(
-        `Registration successful!\n\nAn Mpesa prompt has been sent to ${phoneNumber}. Complete payment to activate your account.`
-      );
+      try {
+        await createUser({ phoneNumber, fullName, idNumber, occupation });
+        console.log(`🔔 STK push pending for ${phoneNumber}`);
+        return end(
+          `Registration successful!\n\nAn Mpesa prompt has been sent to ${phoneNumber}. Complete payment to activate your account.`
+        );
+      } catch (err) {
+        console.error('Registration save error:', err.message);
+        return end(`Registration failed. Your phone or ID may already be registered. Please try again.`);
+      }
     }
 
     return con(
@@ -78,17 +84,6 @@ const handle = (inputs, phoneNumber) => {
   }
 
   return end(`Something went wrong. Please try again.`);
-};
-
-// Fire-and-forget: save user + trigger STK push
-const saveAndPay = async (userData) => {
-  try {
-    await createUser(userData);
-    // STK push will go here once stkService is ready
-    console.log(`🔔 STK push pending for ${userData.phoneNumber}`);
-  } catch (err) {
-    console.error('Registration save error:', err.message);
-  }
 };
 
 module.exports = { handle };

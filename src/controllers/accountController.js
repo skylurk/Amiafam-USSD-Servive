@@ -2,8 +2,11 @@ const { con, end } = require('../utils/ussdResponse');
 const { getStatus, getTotalContributions, getLastPayment } = require('../services/contributionService');
 const { triggerSTK } = require('../services/stkService');
 const { createUser } = require('../services/userService');
+const { normalisePhone } = require('../utils/phoneUtils');
 
-const MAIN_MENU = `CON Account\n1. Register on Behalf\n2. Contribution\n3. My Status\n4. Emergency Help\n5. Information`;
+const OCCUPATIONS = ['Rider', 'Street Vendor', 'Mechanic/Artisan', 'Other'];
+
+const MAIN_MENU = con(`Account\n1. Register on Behalf\n2. Contribution\n3. My Status\n4. Emergency Help\n5. Information`);
 
 const handle = async (inputs, user) => {
   if (inputs.length === 0) return MAIN_MENU;
@@ -29,28 +32,41 @@ const handleRegisterOnBehalf = async (inputs, user) => {
     return con('Select occupation:\n1. Rider\n2. Street Vendor\n3. Mechanic/Artisan\n4. Other');
 
   if (inputs.length === 5) {
-    const OCCUPATIONS = ['Rider', 'Street Vendor', 'Mechanic/Artisan', 'Other'];
+    const phone    = normalisePhone(inputs[1]);
+    const fullName = inputs[2].trim();
+    const idNumber = inputs[3].trim();
     const occIndex = parseInt(inputs[4]) - 1;
-    if (isNaN(occIndex) || !OCCUPATIONS[occIndex])
-      return con('Invalid. Select occupation:\n1. Rider\n2. Street Vendor\n3. Mechanic/Artisan\n4. Other');
+    const occupation = OCCUPATIONS[occIndex];
+
+    if (!phone)                return end('Invalid phone number. Please dial again.');
+    if (fullName.length > 50)  return end('Name too long. Please dial again.');
+    if (idNumber.length > 15)  return end('ID number too long. Please dial again.');
+    if (isNaN(occIndex) || !occupation)
+      return end('Invalid occupation selected. Please dial again.');
 
     return con(
-      `Confirm:\nPhone: ${inputs[1]}\nName: ${inputs[2]}\nID: ${inputs[3]}\nOccupation: ${OCCUPATIONS[occIndex]}\n\n1. Confirm\n2. Cancel`
+      `Confirm:\nPhone: ${phone}\nName: ${fullName}\nID: ${idNumber}\nOccupation: ${occupation}\n\n1. Confirm\n2. Cancel`
     );
   }
 
   if (inputs.length === 6) {
     if (inputs[5] === '2') return end('Registration cancelled.');
     if (inputs[5] === '1') {
-      const OCCUPATIONS = ['Rider', 'Street Vendor', 'Mechanic/Artisan', 'Other'];
+      const phone    = normalisePhone(inputs[1]);
+      const fullName = inputs[2].trim();
+      const idNumber = inputs[3].trim();
+      const occIndex = parseInt(inputs[4]) - 1;
+      const occupation = OCCUPATIONS[occIndex];
+
+      if (!phone)                return end('Invalid phone number. Please dial again.');
+      if (fullName.length > 50)  return end('Name too long. Please dial again.');
+      if (idNumber.length > 15)  return end('ID number too long. Please dial again.');
+      if (isNaN(occIndex) || !occupation)
+        return end('Invalid occupation selected. Please dial again.');
+
       try {
-        await createUser({
-          phoneNumber: inputs[1],
-          fullName: inputs[2],
-          idNumber: inputs[3],
-          occupation: OCCUPATIONS[parseInt(inputs[4]) - 1],
-        });
-        return end(`${inputs[2]} has been registered successfully.`);
+        await createUser({ phoneNumber: phone, fullName, idNumber, occupation });
+        return end(`${fullName} has been registered successfully.`);
       } catch (err) {
         return end('Registration failed. Phone or ID may already exist.');
       }
